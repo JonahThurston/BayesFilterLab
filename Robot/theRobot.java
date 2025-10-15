@@ -402,15 +402,134 @@ public class theRobot extends JFrame {
         myMaps.updateProbs(probs);
     }
     
-    // TODO (FILTERING ASSIGNMENT): update the probabilities of where the AI thinks it is based on the action selected and the new sonar readings
-    //       To do this, you should update the 2D-array "probs"
+    // update the probabilities of where the AI thinks it is based on the action selected and the new sonar readings
+    //       by updating the 2D-array "probs"
     // Note: sonars is a bit string with four characters, specifying the sonar reading in the direction of North, South, East, and West
     //       For example, the sonar string 1001, specifies that the sonars found a wall in the North and West directions, but not in the South and East directions
     void updateProbabilities(int action, String sonars) {
-        // TODO (FILTERING ASSIGNMENT): add your filtering code here
+        int WorldWidth = mundo.width;
+        int WorldHeight = mundo.height;
+
+        // Only use the first 4 sonar bits (N,S,E,W). 
+        String trimmedSonar = (sonars.length() >= 4) ? sonars.substring(0, 4) : sonars;
+
+        double[][] computedProb = runPredictionStep(action, WorldWidth, WorldHeight);
+        applyCorrectionStep(computedProb, trimmedSonar, WorldWidth, WorldHeight);
+
+        // If not terminal (no win/lose flag), zero out goal/stairs since we know we aren't there
+        if (sonars.length() <= 4) {
+            for (int y = 0; y < WorldHeight; y++) {
+                for (int x = 0; x < WorldWidth; x++) {
+                    if (mundo.grid[x][y] == 2 || mundo.grid[x][y] == 3) {
+                        computedProb[x][y] = 0.0;
+                    }
+                }
+            }
+        }
+
+        normalizeProbabilities(computedProb, WorldWidth, WorldHeight);
+
+        // Commit
+        probs = computedProb;
 
         myMaps.updateProbs(probs); // make sure to call this function after updating your probabilities so that the
                                    // new probabilities will show up in the probability map on the GUI
+    }
+
+    private double[][] runPredictionStep(int action, int worldWidth, int worldHeight) {
+        double[][] predicted = new double[worldWidth][worldHeight];
+
+        // Predefine position changes for each movement
+        //                                 N  So E   W  St
+        final int[] actionToHorChange =  { 0, 0, 1, -1, 0};   
+        final int[] actionToVertChange = {-1, 1, 0,  0, 0};
+
+        // Precompute prob the intended move failed
+        double pFailedMove = (1.0 - moveProb) / 4.0;
+
+        for (int yStart = 0; yStart < worldHeight; yStart++) {
+            for (int xStart = 0; xStart < worldWidth; xStart++) {
+                if (mundo.grid[xStart][yStart] == 1) continue; // walls are never occupied
+                double probStartHere = probs[xStart][yStart];
+                if (probStartHere == 0.0) continue; // dont have to check if we couldnt have been there
+
+                for (int moveOpt = 0; moveOpt < 5; moveOpt++) {
+                    double pMoveOptTaken = (moveOpt == action) ? moveProb : pFailedMove;
+                    if (pMoveOptTaken == 0.0) continue;
+
+                    int xNew = xStart + actionToHorChange[moveOpt];
+                    int yNew = yStart + actionToVertChange[moveOpt];
+                    // If attempted move hits a wall, stay put
+                    if (mundo.grid[xNew][yNew] == 1) { xNew = xStart; yNew = yStart; }
+
+                    // Sum up over all viable adjacent spaces:
+                    predicted[xNew][yNew] += pMoveOptTaken * probStartHere;
+                }
+            }
+        }
+
+        return predicted;
+    }
+
+    private void applyCorrectionStep(double[][] computedProb, String trimmedSonar, int worldWidth, int worldHeight) {
+        double oneMinusAcc = 1.0 - sensorAccuracy;
+        for (int y = 0; y < worldHeight; y++) {
+            for (int x = 0; x < worldWidth; x++) {
+                if (mundo.grid[x][y] == 1) { // walls remain zero
+                    computedProb[x][y] = 0.0;
+                    continue;
+                }
+
+                double pSensorDidThat = 1.0;
+                // North
+                char isNWall = (mundo.grid[x][y-1] == 1) ? '1' : '0'; // These lines rely on the map being surrounded in walls. All edge indexes will have been skipped by now.
+                pSensorDidThat *= (trimmedSonar.charAt(0) == isNWall) ? sensorAccuracy : oneMinusAcc;
+                // South
+                char isSWall = (mundo.grid[x][y+1] == 1) ? '1' : '0';
+                pSensorDidThat *= (trimmedSonar.charAt(1) == isSWall) ? sensorAccuracy : oneMinusAcc;
+                // East
+                char isEWall = (mundo.grid[x+1][y] == 1) ? '1' : '0';
+                pSensorDidThat *= (trimmedSonar.charAt(2) == isEWall) ? sensorAccuracy : oneMinusAcc;
+                // West
+                char isWWall = (mundo.grid[x-1][y] == 1) ? '1' : '0';
+                pSensorDidThat *= (trimmedSonar.charAt(3) == isWWall) ? sensorAccuracy : oneMinusAcc;
+
+                computedProb[x][y] *= pSensorDidThat;
+            }
+        }
+    }
+
+    private void normalizeProbabilities(double[][] computedProb, int worldWidth, int worldHeight) {
+        double sum = 0.0;
+        for (int y = 0; y < worldHeight; y++) {
+            for (int x = 0; x < worldWidth; x++) {
+                sum += computedProb[x][y];
+            }
+        }
+        if (sum > 0) {
+            double normFactor = 1.0 / sum;
+            for (int y = 0; y < worldHeight; y++) {
+                for (int x = 0; x < worldWidth; x++) {
+                    computedProb[x][y] *= normFactor;
+                }
+            }
+        } else {
+            // We literally are so baffled, we are pretty sure that we are in the shadow dimension. This should hopefully never happen. Just try to reset.
+            int count = 0;
+            for (int y = 0; y < worldHeight; y++) {
+                for (int x = 0; x < worldWidth; x++) {
+                    if (mundo.grid[x][y] == 0) count++;
+                }
+            }
+            if (count > 0) {
+                double val = 1.0 / count;
+                for (int y = 0; y < worldHeight; y++) {
+                    for (int x = 0; x < worldWidth; x++) {
+                        computedProb[x][y] = (mundo.grid[x][y] == 0) ? val : 0.0;
+                    }
+                }
+            }
+        }
     }
     
     // This is the function to implement to make the robot move using your AI;
@@ -439,7 +558,7 @@ public class theRobot extends JFrame {
                 String sonars = sin.readLine();
                 //System.out.println("Sonars: " + sonars); // Uncomment if you want to see what the sonar readings are at each time step
             
-                updateProbabilities(action, sonars); // TODO (FILTERING ASSIGNMENT): this function should update the probabilities of where the AI thinks it is
+                updateProbabilities(action, sonars);
                 
                 if (sonars.length() > 4) {  // check to see if the robot has reached its goal or fallen down stairs
                     if (sonars.charAt(4) == 'w') {
