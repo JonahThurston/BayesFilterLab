@@ -611,7 +611,7 @@ public class theRobot extends JFrame {
   }
 
   // This is the function to implement to make the robot move using your AI;
-  int automaticAction() {
+  int automaticAction(boolean checkStay) {
     final int worldWidth = mundo.width;
     final int worldHeight = mundo.height;
     final int[] actionToHorChange =  {0, 0, 1, -1, 0};
@@ -621,7 +621,11 @@ public class theRobot extends JFrame {
     int bestAction = STAY;
     double bestValue = Double.NEGATIVE_INFINITY;
 
-    for (int intendedAction = 0; intendedAction < 5; intendedAction++) {
+    int maxActionToTry = 4;
+    if (checkStay) maxActionToTry = 5;
+
+    // For my own attempt at improving this function, I stopped it from bothering with stay as a possible action.
+    for (int intendedAction = 0; intendedAction < maxActionToTry; intendedAction++) {
       double expectedValueForAction = 0.0;
 
       for (int y = 0; y < worldHeight; y++) {
@@ -673,7 +677,7 @@ public class theRobot extends JFrame {
         if (isManual)
           action = getHumanAction();  // get the action selected by the user (from the keyboard)
         else
-          action = automaticAction(); // TODO (MDP ASSIGNMENT): get the action selected by your AI;
+          action = automaticAction(true);
         
         sout.println(action); // send the action to the Server
         
