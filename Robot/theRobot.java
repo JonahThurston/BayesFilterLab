@@ -537,10 +537,10 @@ public class theRobot extends JFrame {
   // This function should fill in the v's array. Setting the expected value of being in each cell.
   private void valueIteration() {
     // tune these constants to best guide the robot away from stairwells and towards the goal
-    final double goalReward = 100;
-    final double stairReward = -100;
+    final double goalReward = 500;
+    final double stairReward = -35;
     final double emptySpaceReward = -1;
-    final double discountFactor = 0.95;
+    final double discountFactor = 0.99;
     final double convergenceCheck = 0.001; 
 
     //Could prob just take these all out to the class, cuz we use them in both this and prob stuff. But meh.
@@ -648,6 +648,9 @@ public class theRobot extends JFrame {
 
             // actually a stay if try to leave borders or go in wall
             if (nx < 0 || nx >= worldWidth || ny < 0 || ny >= worldHeight || mundo.grid[nx][ny] == 1) {
+              if (!checkStay) {
+                continue;
+              }
               nx = x;
               ny = y;
             }
