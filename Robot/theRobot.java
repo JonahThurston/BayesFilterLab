@@ -266,6 +266,7 @@ public class theRobot extends JFrame {
   boolean knownPosition = false;
   int startX = -1, startY = -1;
   int decisionDelay = 250;
+  boolean checkStayAction = true;
   
   // store your probability map (for position of the robot in this array
   double[][] probs;
@@ -273,13 +274,14 @@ public class theRobot extends JFrame {
   // store your computed value of being in each state (x, y)
   double[][] Vs;
   
-  public theRobot(String _manual, int _decisionDelay) {
+  public theRobot(String _manual, int _decisionDelay, boolean _checkStay) {
     // initialize variables as specified from the command-line
     if (_manual.equals("automatic"))
       isManual = false;
     else
       isManual = true;
     decisionDelay = _decisionDelay;
+    checkStayAction = _checkStay;
     
     // get a connection to the server and get initial information about the world
     initClient();
@@ -677,7 +679,7 @@ public class theRobot extends JFrame {
         if (isManual)
           action = getHumanAction();  // get the action selected by the user (from the keyboard)
         else
-          action = automaticAction(true);
+          action = automaticAction(checkStayAction);
         
         sout.println(action); // send the action to the Server
         
@@ -716,8 +718,12 @@ public class theRobot extends JFrame {
     }
   }
 
-  // java theRobot [manual/automatic] [delay]
+  // java theRobot [manual/automatic] [delay] [checkStay]
   public static void main(String[] args) {
-    theRobot robot = new theRobot(args[0], Integer.parseInt(args[1]));  // starts up the robot
+    boolean checkStay = true;
+    if (args.length > 2) {
+      checkStay = Boolean.parseBoolean(args[2]);
+    }
+    theRobot robot = new theRobot(args[0], Integer.parseInt(args[1]), checkStay);  // starts up the robot
   }
 }
