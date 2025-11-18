@@ -612,13 +612,54 @@ public class theRobot extends JFrame {
 
   // This is the function to implement to make the robot move using your AI;
   int automaticAction() {
-    // TODO: implement the below pseudocode
-    // for possible each action
-      // for each possible starting state
-        // expected value =  prob we're in that state * the sum of the weighted value of each potential resulting move
-    
-    //TODO: return action with maximum expected value
-    return STAY;
+    final int worldWidth = mundo.width;
+    final int worldHeight = mundo.height;
+    final int[] actionToHorChange =  {0, 0, 1, -1, 0};
+    final int[] actionToVertChange = {-1, 1, 0,  0, 0};
+    final double pFailedMove = (1.0 - moveProb) / 4.0;
+
+    int bestAction = STAY;
+    double bestValue = Double.NEGATIVE_INFINITY;
+
+    for (int intendedAction = 0; intendedAction < 5; intendedAction++) {
+      double expectedValueForAction = 0.0;
+
+      for (int y = 0; y < worldHeight; y++) {
+        for (int x = 0; x < worldWidth; x++) {
+          double belief = probs[x][y];
+          //skip if we def aren't here
+          if (belief <= 0.0 || mundo.grid[x][y] == 1) {
+            continue;
+          }
+
+          double valueFromState = 0.0;
+          for (int actualMove = 0; actualMove < 5; actualMove++) {
+            double actionProb = (actualMove == intendedAction) ? moveProb : pFailedMove;
+            if (actionProb == 0.0) continue;
+
+            int nx = x + actionToHorChange[actualMove];
+            int ny = y + actionToVertChange[actualMove];
+
+            // actually a stay if try to leave borders or go in wall
+            if (nx < 0 || nx >= worldWidth || ny < 0 || ny >= worldHeight || mundo.grid[nx][ny] == 1) {
+              nx = x;
+              ny = y;
+            }
+
+            valueFromState += actionProb * Vs[nx][ny];
+          }
+
+          expectedValueForAction += belief * valueFromState;
+        }
+      }
+
+      if (expectedValueForAction > bestValue) {
+        bestValue = expectedValueForAction;
+        bestAction = intendedAction;
+      }
+    }
+
+    return bestAction;
   }
   
   void doStuff() {
