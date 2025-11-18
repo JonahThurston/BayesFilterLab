@@ -532,6 +532,83 @@ public class theRobot extends JFrame {
     }
   }
   
+  // This function should fill in the v's array. Setting the expected value of being in each cell.
+  private void valueIteration() {
+    // tune these constants to best guide the robot away from stairwells and towards the goal
+    final double goalReward = 100;
+    final double stairReward = -100;
+    final double emptySpaceReward = -1;
+    final double discountFactor = 0.95;
+    final double convergenceCheck = 0.001; 
+
+    final int worldWidth = mundo.width;
+    final int worldHeight = mundo.height;
+    Vs = new double[worldWidth][worldHeight];
+    double[][] nextVs = new double[worldWidth][worldHeight];
+    final int[] actionToHorChange =  { 0, 0, 1, -1, 0};   // Same movement arrays as last assignment.
+    final int[] actionToVertChange = {-1, 1, 0,  0, 0};
+    final double pFailedMove = (1.0 - moveProb) / 4.0;
+
+    boolean converged = false;
+    while (!converged) {
+      double maxDeltaSoFar = 0.0;
+      for (int y = 0; y < worldHeight; y++) {
+        for (int x = 0; x < worldWidth; x++) {
+          double currentVal = Vs[x][y];
+          double newVal;
+          int cell = mundo.grid[x][y];
+
+          // stairs and walls should hopefully just get set once on the first loop?
+          if (cell == 1) { // walls get no reward ig? don't want my robot to be wallphobic or wallphilic
+            newVal = 0.0;
+          } else if (cell == 2) { // stairs
+            newVal = stairReward;
+          } else if (cell == 3) { // goal
+            newVal = goalReward;
+          } 
+          // walkable floor
+          else { 
+            // prob more readable if i pull this out to a helper function. All this just gets the max part of the equation.
+            // for each possible action
+            double bestActionVal = Double.NEGATIVE_INFINITY;
+            for (int action = 0; action < 5; action++) {
+              //add up weighted results of each actual move resulting from that intended action 
+              double expectedVal = 0.0;
+              for (int actualMove = 0; actualMove < 5; actualMove++) {
+                double actionProb = (actualMove == action) ? moveProb : pFailedMove;
+                if (actionProb == 0.0) continue;
+                int nx = x + actionToHorChange[actualMove];
+                int ny = y + actionToVertChange[actualMove];
+                // if we leave world borders or went into a wall then actually thats just a stay
+                if (nx < 0 || nx >= worldWidth || ny < 0 || ny >= worldHeight || mundo.grid[nx][ny] == 1) {
+                  nx = x;
+                  ny = y;
+                }
+                expectedVal += actionProb * Vs[nx][ny];
+              }
+              if (expectedVal > bestActionVal)
+                bestActionVal = expectedVal;
+            }
+
+            // full markov equation fr fr
+            newVal = emptySpaceReward + discountFactor * bestActionVal;
+          }
+
+          nextVs[x][y] = newVal;
+          maxDeltaSoFar = Math.max(maxDeltaSoFar, Math.abs(newVal - currentVal));
+        }
+      }
+
+      // This is a fancy thing chat helped me come up with. We swap pointers around instead of copying all the new vals into Vs.
+      double[][] temp = Vs;
+      Vs = nextVs;
+      nextVs = temp;
+      converged = (maxDeltaSoFar < convergenceCheck);
+    }
+    // chat says if we wanna visualise Vs we can do smth like this
+    // myMaps.updateValues(Vs);
+  }
+
   // This is the function to implement to make the robot move using your AI;
   // (FILTERING ASSIGNMENT): You do NOT need to write this function yet; it can remain as is
   int automaticAction() {
@@ -542,7 +619,7 @@ public class theRobot extends JFrame {
   void doStuff() {
     int action;
     
-    //valueIteration();  // TODO (MDP ASSIGNMENT): uncomment, implement function, and use to compute your value function
+    valueIteration();
     initializeProbabilities();  // Initializes the location (probability) map
     
     while (true) {
