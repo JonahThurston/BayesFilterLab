@@ -541,6 +541,7 @@ public class theRobot extends JFrame {
     final double discountFactor = 0.95;
     final double convergenceCheck = 0.001; 
 
+    //Could prob just take these all out to the class, cuz we use them in both this and prob stuff. But meh.
     final int worldWidth = mundo.width;
     final int worldHeight = mundo.height;
     Vs = new double[worldWidth][worldHeight];
