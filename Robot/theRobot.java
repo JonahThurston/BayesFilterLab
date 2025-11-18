@@ -440,7 +440,7 @@ public class theRobot extends JFrame {
     double[][] predicted = new double[worldWidth][worldHeight];
 
     // Predefine position changes for each movement
-    //                 N  So E   W  St
+    //                                 N  So E   W  St
     final int[] actionToHorChange =  { 0, 0, 1, -1, 0};   
     final int[] actionToVertChange = {-1, 1, 0,  0, 0};
 
