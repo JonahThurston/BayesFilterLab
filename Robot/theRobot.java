@@ -611,10 +611,14 @@ public class theRobot extends JFrame {
   }
 
   // This is the function to implement to make the robot move using your AI;
-  // (FILTERING ASSIGNMENT): You do NOT need to write this function yet; it can remain as is
   int automaticAction() {
-    // TODO (MDP ASSIGNMENT): automatically determine the action the robot should take
-    return STAY;  // default action for now
+    // TODO: implement the below pseudocode
+    // for possible each action
+      // for each possible starting state
+        // expected value =  prob we're in that state * the sum of the weighted value of each potential resulting move
+    
+    //TODO: return action with maximum expected value
+    return STAY;
   }
   
   void doStuff() {
